@@ -10,12 +10,21 @@ internal interface IDelivery
 
 public static class MasterDelivery
 {
-    private static readonly IReadOnlyList<IDelivery> Deliveries =
-    [
-        new PushoverDelivery(),
-        new NtfyDelivery(),
-        new DiscordDelivery()
-    ];
+    private static readonly List<IDelivery> Deliveries = new List<IDelivery>();
+
+    static MasterDelivery()
+    {
+        Deliveries.Add(new PushoverDelivery());
+        Deliveries.Add(new NtfyDelivery());
+        Deliveries.Add(new DiscordDelivery());
+
+        if (Plugin.Configuration.EnableTelegramBot)
+        {
+            var telegramDelivery = new TelegramDelivery();
+            if (telegramDelivery.IsActive)
+                Deliveries.Add(telegramDelivery);
+        }
+    }
 
     public static void Deliver(string title, string text)
     {

@@ -11,7 +11,7 @@ namespace PushyFinder.Windows;
 public class ConfigWindow : Window, IDisposable
 {
     private readonly Configuration Configuration;
-
+    private readonly Plugin plugin;
     private readonly TimedBool notifSentMessageTimer = new(3.0f);
 
     public ConfigWindow(Plugin plugin) : base(
@@ -19,6 +19,7 @@ public class ConfigWindow : Window, IDisposable
         ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoScrollbar |
         ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.AlwaysAutoResize)
     {
+        this.plugin = plugin;  
         Configuration = Plugin.Configuration;
     }
 
@@ -80,6 +81,39 @@ public class ConfigWindow : Window, IDisposable
         }
     }
 
+    private void DrawTelegramConfig()
+    {
+        {
+            var cfg = Configuration.TelegramBotToken;
+            if (ImGui.InputText("Bot Token", ref cfg, 2048u)) Configuration.TelegramBotToken = cfg;
+        }
+        {
+            var cfg = Configuration.TelegramChatId;
+            if (ImGui.InputText("Chat ID", ref cfg, 2048u)) Configuration.TelegramChatId = cfg;
+        }
+        {
+            var cfg = Configuration.EnableTelegramBot;
+            if (ImGui.Checkbox("Enable Telegram Bot", ref cfg))
+            {
+                Configuration.EnableTelegramBot = cfg;
+                Configuration.Save();
+
+                if (cfg)
+                {
+                    Service.PluginLog.Debug("Starting Telegram bot...");
+                    if (plugin.TelegramDelivery == null)
+                        plugin.TelegramDelivery = new TelegramDelivery();
+                    plugin.TelegramDelivery.StartListening();
+                }
+                else
+                {
+                    Service.PluginLog.Debug("Stopping Telegram bot...");
+                    plugin.TelegramDelivery?.StopListening();
+                }
+            }
+        }
+    }
+
     public override void Draw()
     {
         using (var tabBar = ImRaii.TabBar("Services"))
@@ -97,6 +131,10 @@ public class ConfigWindow : Window, IDisposable
                 using (var discordTab = ImRaii.TabItem("Discord"))
                 {
                     if (discordTab) DrawDiscordConfig();
+                }
+                using (var telegramTab = ImRaii.TabItem("Telegram"))
+                {
+                    if (telegramTab) DrawTelegramConfig();
                 }
             }
         }

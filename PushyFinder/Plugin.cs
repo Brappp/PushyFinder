@@ -9,6 +9,7 @@ using Newtonsoft.Json;
 using PushyFinder.Impl;
 using PushyFinder.Util;
 using PushyFinder.Windows;
+using PushyFinder.Delivery;
 
 namespace PushyFinder;
 
@@ -20,18 +21,13 @@ public sealed class Plugin : IDalamudPlugin
     private IDalamudPluginInterface PluginInterface { get; init; }
     private ICommandManager CommandManager { get; init; }
 
-    // This *is* used.
-#pragma warning disable CS8618
     public static Configuration Configuration { get; private set; }
-#pragma warning restore
+    public TelegramDelivery? TelegramDelivery { get; set; }  
 
     public WindowSystem WindowSystem = new("PushyFinder");
-
     private ConfigWindow ConfigWindow { get; init; }
 
-    public Plugin(
-        IDalamudPluginInterface pluginInterface,
-        ICommandManager commandManager)
+    public Plugin(IDalamudPluginInterface pluginInterface, ICommandManager commandManager)
     {
         pluginInterface.Create<Service>();
 
@@ -42,7 +38,6 @@ public sealed class Plugin : IDalamudPlugin
         Configuration.Initialize(PluginInterface);
 
         ConfigWindow = new ConfigWindow(this);
-
         WindowSystem.AddWindow(ConfigWindow);
 
         CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
@@ -53,6 +48,12 @@ public sealed class Plugin : IDalamudPlugin
         PluginInterface.UiBuilder.Draw += DrawUI;
         PluginInterface.UiBuilder.OpenConfigUi += DrawConfigUI;
 
+        if (Configuration.EnableTelegramBot)
+        {
+            TelegramDelivery = new TelegramDelivery();
+            if (TelegramDelivery.IsActive) TelegramDelivery.StartListening();
+        }
+
         CrossWorldPartyListSystem.Start();
         PartyListener.On();
         DutyListener.On();
@@ -61,7 +62,6 @@ public sealed class Plugin : IDalamudPlugin
     public void Dispose()
     {
         WindowSystem.RemoveAllWindows();
-
         ConfigWindow.Dispose();
 
         CrossWorldPartyListSystem.Stop();
@@ -69,6 +69,13 @@ public sealed class Plugin : IDalamudPlugin
         DutyListener.Off();
 
         CommandManager.RemoveHandler(CommandName);
+
+        if (Configuration.EnableTelegramBot)
+        {
+            TelegramDelivery?.StopListening();
+            Configuration.EnableTelegramBot = false;
+            Configuration.Save();
+        }
     }
 
     private void OnCommand(string command, string args)
