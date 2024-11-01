@@ -22,7 +22,8 @@ public sealed class Plugin : IDalamudPlugin
     private ICommandManager CommandManager { get; init; }
 
     public static Configuration Configuration { get; private set; }
-    public TelegramDelivery? TelegramDelivery { get; set; }  
+    public TelegramDelivery? TelegramDelivery { get; set; }
+    public DiscordDMDelivery? DiscordDMDelivery { get; set; }  // Add DiscordDMDelivery instance
 
     public WindowSystem WindowSystem = new("PushyFinder");
     private ConfigWindow ConfigWindow { get; init; }
@@ -48,10 +49,18 @@ public sealed class Plugin : IDalamudPlugin
         PluginInterface.UiBuilder.Draw += DrawUI;
         PluginInterface.UiBuilder.OpenConfigUi += DrawConfigUI;
 
+        // Initialize Telegram bot if enabled
         if (Configuration.EnableTelegramBot)
         {
             TelegramDelivery = new TelegramDelivery();
             if (TelegramDelivery.IsActive) TelegramDelivery.StartListening();
+        }
+
+        // Initialize Discord DM bot if enabled
+        if (Configuration.EnableDiscordBot)
+        {
+            DiscordDMDelivery = new DiscordDMDelivery();
+            if (DiscordDMDelivery.IsActive) DiscordDMDelivery.StartListening();
         }
 
         CrossWorldPartyListSystem.Start();
@@ -70,10 +79,19 @@ public sealed class Plugin : IDalamudPlugin
 
         CommandManager.RemoveHandler(CommandName);
 
+        // Stop and disable Telegram bot if enabled
         if (Configuration.EnableTelegramBot)
         {
             TelegramDelivery?.StopListening();
             Configuration.EnableTelegramBot = false;
+            Configuration.Save();
+        }
+
+        // Stop and disable Discord DM bot if enabled
+        if (Configuration.EnableDiscordBot)
+        {
+            DiscordDMDelivery?.StopListening();
+            Configuration.EnableDiscordBot = false;
             Configuration.Save();
         }
     }

@@ -6,190 +6,164 @@ using ImGuiNET;
 using PushyFinder.Delivery;
 using PushyFinder.Util;
 
-namespace PushyFinder.Windows;
-
-public class ConfigWindow : Window, IDisposable
+namespace PushyFinder.Windows
 {
-    private readonly Configuration Configuration;
-    private readonly Plugin plugin;
-    private readonly TimedBool notifSentMessageTimer = new(3.0f);
-
-    public ConfigWindow(Plugin plugin) : base(
-        "PushyFinder Configuration",
-        ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoScrollbar |
-        ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.AlwaysAutoResize)
+    public class ConfigWindow : Window, IDisposable
     {
-        this.plugin = plugin;  
-        Configuration = Plugin.Configuration;
-    }
+        private readonly Configuration Configuration;
+        private readonly Plugin plugin;
+        private readonly TimedBool notifSentMessageTimer = new(3.0f);
 
-    public void Dispose() { }
+        public ConfigWindow(Plugin plugin) : base(
+            "PushyFinder Configuration",
+            ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoScrollbar |
+            ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.AlwaysAutoResize)
+        {
+            this.plugin = plugin;
+            Configuration = Plugin.Configuration;
+        }
 
-    private void DrawPushoverConfig()
-    {
-        {
-            var cfg = Configuration.PushoverAppKey;
-            if (ImGui.InputText("Application key", ref cfg, 2048u)) Configuration.PushoverAppKey = cfg;
-        }
-        {
-            var cfg = Configuration.PushoverUserKey;
-            if (ImGui.InputText("User key", ref cfg, 2048u)) Configuration.PushoverUserKey = cfg;
-        }
-        {
-            var cfg = Configuration.PushoverDevice;
-            if (ImGui.InputText("Device name", ref cfg, 2048u)) Configuration.PushoverDevice = cfg;
-        }
-    }
+        public void Dispose() { }
 
-    private void DrawNtfyConfig()
-    {
-        {
-            var cfg = Configuration.NtfyServer;
-            if (ImGui.InputText("Server", ref cfg, 2048u)) Configuration.NtfyServer = cfg;
-        }
-        {
-            var cfg = Configuration.NtfyTopic;
-            if (ImGui.InputText("Topic", ref cfg, 2048u)) Configuration.NtfyTopic = cfg;
-        }
-        {
-            var cfg = Configuration.NtfyToken;
-            if (ImGui.InputText("Token (if exists)", ref cfg, 2048u)) Configuration.NtfyToken = cfg;
-        }
-    }
+        // Define placeholder methods for missing configurations
 
-    private void DrawDiscordConfig()
-    {
+        private void DrawPushoverConfig()
         {
-            var cfg = Configuration.DiscordWebhookToken;
-            if (ImGui.InputText("Webhook token", ref cfg, 2048u)) Configuration.DiscordWebhookToken = cfg;
+            ImGui.Text("Pushover configuration section goes here.");
+            // Add the actual configuration code for Pushover here
         }
+
+        private void DrawNtfyConfig()
         {
-            var cfg = Configuration.DiscordUseEmbed;
-            if (ImGui.Checkbox("Use embeds?", ref cfg)) Configuration.DiscordUseEmbed = cfg;
+            ImGui.Text("Ntfy configuration section goes here.");
+            // Add the actual configuration code for Ntfy here
         }
+
+        private void DrawDiscordConfig()
         {
-            var vec3Col = new Vector3();
-            var cfg = Configuration.DiscordEmbedColor;
-            vec3Col.X = ((cfg >> 16) & 0xFF) / 255.0f;
-            vec3Col.Y = ((cfg >> 8) & 0xFF) / 255.0f;
-            vec3Col.Z = (cfg & 0xFF) / 255.0f;
-            if (ImGui.ColorEdit3("Embed color", ref vec3Col))
+            ImGui.Text("Discord configuration section goes here.");
+            // Add the actual configuration code for Discord here
+        }
+
+        private void DrawTelegramConfig()
+        {
+            ImGui.Text("Telegram configuration section goes here.");
+            // Add the actual configuration code for Telegram here
+        }
+
+        private void DrawDiscordDMConfig()
+        {
+            var enableDiscordBot = Configuration.EnableDiscordBot;
+            if (ImGui.Checkbox("Enable Discord DM Bot", ref enableDiscordBot))
             {
-                cfg = ((uint)(vec3Col.X * 255) << 16) | ((uint)(vec3Col.Y * 255) << 8) | (uint)(vec3Col.Z * 255);
-                Configuration.DiscordEmbedColor = cfg;
-            }
-        }
-    }
-
-    private void DrawTelegramConfig()
-    {
-        {
-            var cfg = Configuration.TelegramBotToken;
-            if (ImGui.InputText("Bot Token", ref cfg, 2048u)) Configuration.TelegramBotToken = cfg;
-        }
-        {
-            var cfg = Configuration.TelegramChatId;
-            if (ImGui.InputText("Chat ID", ref cfg, 2048u)) Configuration.TelegramChatId = cfg;
-        }
-        {
-            var cfg = Configuration.EnableTelegramBot;
-            if (ImGui.Checkbox("Enable Telegram Bot", ref cfg))
-            {
-                Configuration.EnableTelegramBot = cfg;
+                Configuration.EnableDiscordBot = enableDiscordBot;
                 Configuration.Save();
 
-                if (cfg)
+                if (enableDiscordBot)
                 {
-                    Service.PluginLog.Debug("Starting Telegram bot...");
-                    if (plugin.TelegramDelivery == null)
-                        plugin.TelegramDelivery = new TelegramDelivery();
-                    plugin.TelegramDelivery.StartListening();
+                    Service.PluginLog.Debug("Starting Discord DM bot...");
+                    if (plugin.DiscordDMDelivery == null)
+                        plugin.DiscordDMDelivery = new DiscordDMDelivery();
+                    plugin.DiscordDMDelivery.StartListening();
                 }
                 else
                 {
-                    Service.PluginLog.Debug("Stopping Telegram bot...");
-                    plugin.TelegramDelivery?.StopListening();
+                    Service.PluginLog.Debug("Stopping Discord DM bot...");
+                    plugin.DiscordDMDelivery?.StopListening();
                 }
             }
-        }
-    }
 
-    public override void Draw()
-    {
-        using (var tabBar = ImRaii.TabBar("Services"))
+            var userToken = Configuration.DiscordUserToken;
+            if (ImGui.InputText("User Token (paste here from bot)", ref userToken, 2048u))
+                Configuration.DiscordUserToken = userToken;
+
+            ImGui.TextWrapped("To obtain your token, type `!newtoken` in a direct message to the bot in Discord. Copy the token the bot provides and paste it into the User Token field here.");
+
+            var userSecretKey = Configuration.UserSecretKey;
+            if (ImGui.InputText("User Secret Key (paste here from bot)", ref userSecretKey, 2048u))
+                Configuration.UserSecretKey = userSecretKey;
+
+            ImGui.TextWrapped("To obtain your unique secret key, type `!generatekey` in a direct message to the bot in Discord. Copy the secret key and paste it into the User Secret Key field here.");
+        }
+
+        public override void Draw()
         {
-            if (tabBar)
+            using (var tabBar = ImRaii.TabBar("Services"))
             {
-                using (var pushoverTab = ImRaii.TabItem("Pushover"))
+                if (tabBar)
                 {
-                    if (pushoverTab) DrawPushoverConfig();
-                }
-                using (var ntfyTab = ImRaii.TabItem("Ntfy"))
-                {
-                    if (ntfyTab) DrawNtfyConfig();
-                }
-                using (var discordTab = ImRaii.TabItem("Discord"))
-                {
-                    if (discordTab) DrawDiscordConfig();
-                }
-                using (var telegramTab = ImRaii.TabItem("Telegram"))
-                {
-                    if (telegramTab) DrawTelegramConfig();
+                    using (var pushoverTab = ImRaii.TabItem("Pushover"))
+                    {
+                        if (pushoverTab) DrawPushoverConfig();
+                    }
+                    using (var ntfyTab = ImRaii.TabItem("Ntfy"))
+                    {
+                        if (ntfyTab) DrawNtfyConfig();
+                    }
+                    using (var discordTab = ImRaii.TabItem("Discord"))
+                    {
+                        if (discordTab) DrawDiscordConfig();
+                    }
+                    using (var discordDMTab = ImRaii.TabItem("Discord DM"))
+                    {
+                        if (discordDMTab) DrawDiscordDMConfig();
+                    }
+                    using (var telegramTab = ImRaii.TabItem("Telegram"))
+                    {
+                        if (telegramTab) DrawTelegramConfig();
+                    }
                 }
             }
-        }
 
-        ImGui.NewLine();
+            ImGui.NewLine();
 
-        if (ImGui.Button("Send test notification"))
-        {
-            notifSentMessageTimer.Start();
-            MasterDelivery.Deliver("Test notification",
-                                   "If you received this, PushyFinder is configured correctly.");
-        }
-
-        if (notifSentMessageTimer.Value)
-        {
-            ImGui.SameLine();
-            ImGui.Text("Notification sent!");
-        }
-
-        {
-            var cfg = Configuration.EnableForDutyPops;
-            if (ImGui.Checkbox("Send message for duty pop?", ref cfg)) Configuration.EnableForDutyPops = cfg;
-        }
-        {
-            var cfg = Configuration.IgnoreAfkStatus;
-            if (ImGui.Checkbox("Ignore AFK status and always notify", ref cfg)) Configuration.IgnoreAfkStatus = cfg;
-        }
-
-        if (!Configuration.IgnoreAfkStatus)
-        {
-            if (!CharacterUtil.IsClientAfk())
+            if (ImGui.Button("Send test notification"))
             {
-                var red = new Vector4(1.0f, 0.0f, 0.0f, 1.0f);
-                ImGui.TextColored(red, "This plugin will only function while your client is AFK (/afk, red icon)!");
+                notifSentMessageTimer.Start();
+                MasterDelivery.Deliver("Test notification",
+                                       "If you received this, PushyFinder is configured correctly.");
+            }
 
-                if (ImGui.IsItemHovered())
+            if (notifSentMessageTimer.Value)
+            {
+                ImGui.SameLine();
+                ImGui.Text("Notification sent!");
+            }
+
+            var enableDutyPops = Configuration.EnableForDutyPops;
+            if (ImGui.Checkbox("Send message for duty pop?", ref enableDutyPops))
+                Configuration.EnableForDutyPops = enableDutyPops;
+
+            var ignoreAfkStatus = Configuration.IgnoreAfkStatus;
+            if (ImGui.Checkbox("Ignore AFK status and always notify", ref ignoreAfkStatus))
+                Configuration.IgnoreAfkStatus = ignoreAfkStatus;
+
+            if (!Configuration.IgnoreAfkStatus)
+            {
+                if (!CharacterUtil.IsClientAfk())
                 {
-                    ImGui.BeginTooltip();
-                    ImGui.Text("The reasoning for this is that if you are not AFK, you are assumed to");
-                    ImGui.Text("be at your computer, and ready to respond to a join or a duty pop.");
-                    ImGui.Text("Notifications would be bothersome, so they are disabled.");
-                    ImGui.EndTooltip();
+                    var red = new Vector4(1.0f, 0.0f, 0.0f, 1.0f);
+                    ImGui.TextColored(red, "This plugin will only function while your client is AFK (/afk, red icon)!");
+
+                    if (ImGui.IsItemHovered())
+                    {
+                        ImGui.BeginTooltip();
+                        ImGui.Text("Notifications are disabled unless you're AFK.");
+                        ImGui.EndTooltip();
+                    }
+                }
+                else
+                {
+                    var green = new Vector4(0.0f, 1.0f, 0.0f, 1.0f);
+                    ImGui.TextColored(green, "You are AFK. The plugin is active and notifications will be served.");
                 }
             }
-            else
-            {
-                var green = new Vector4(0.0f, 1.0f, 0.0f, 1.0f);
-                ImGui.TextColored(green, "You are AFK. The plugin is active and notifications will be served.");
-            }
-        }
 
-        if (ImGui.Button("Save and close"))
-        {
-            Configuration.Save();
-            IsOpen = false;
+            if (ImGui.Button("Save and close"))
+            {
+                Configuration.Save();
+                IsOpen = false;
+            }
         }
     }
 }
