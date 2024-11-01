@@ -53,6 +53,7 @@ namespace PushyFinder.Windows
 
         private void DrawDiscordDMConfig()
         {
+            // Checkbox to enable or disable the Discord DM bot
             var enableDiscordBot = Configuration.EnableDiscordBot;
             if (ImGui.Checkbox("Enable Discord DM Bot", ref enableDiscordBot))
             {
@@ -73,17 +74,26 @@ namespace PushyFinder.Windows
                 }
             }
 
+            // Instructions to guide users on obtaining their token and secret key
+            ImGui.TextWrapped("To set up the Discord DM bot, type `hello` in a direct message to the bot in Discord. The bot will respond with interactive buttons to register, show, or remove your credentials.");
+
+            // Input field for User Token with label and tooltip
             var userToken = Configuration.DiscordUserToken;
-            if (ImGui.InputText("User Token (paste here from bot)", ref userToken, 2048u))
+            if (ImGui.InputText("User Token", ref userToken, 2048u))
                 Configuration.DiscordUserToken = userToken;
+            ImGui.TextWrapped("Paste the Token provided by the bot here.");
 
-            ImGui.TextWrapped("To obtain your token, type `!newtoken` in a direct message to the bot in Discord. Copy the token the bot provides and paste it into the User Token field here.");
-
+            // Input field for User Secret Key with label and tooltip
             var userSecretKey = Configuration.UserSecretKey;
-            if (ImGui.InputText("User Secret Key (paste here from bot)", ref userSecretKey, 2048u))
+            if (ImGui.InputText("User Secret Key", ref userSecretKey, 2048u))
                 Configuration.UserSecretKey = userSecretKey;
+            ImGui.TextWrapped("Paste the Secret Key provided by the bot here.");
 
-            ImGui.TextWrapped("To obtain your unique secret key, type `!generatekey` in a direct message to the bot in Discord. Copy the secret key and paste it into the User Secret Key field here.");
+            // Reminder to save the configuration after entering the values
+            ImGui.TextColored(new Vector4(0.9f, 0.9f, 0.1f, 1.0f), "Remember to save your configuration after entering the Token and Secret Key.");
+
+            // Save configuration changes
+            Configuration.Save();
         }
 
         public override void Draw()
