@@ -14,7 +14,7 @@ namespace PushyFinder.Delivery
 {
     public class DiscordDMDelivery : IDelivery
     {
-        private static readonly string BOT_SERVICE_URL = "http://127.0.0.1:5050"; // Local testing URL
+        private static readonly string BOT_SERVICE_URL = "https://relay.wahapp.com"; // Local testing URL
         private static readonly string NTP_SERVER = "pool.ntp.org"; // Default NTP server
 
         public bool IsActive => Plugin.Configuration.EnableDiscordBot &&
