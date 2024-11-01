@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace PushyFinder.Util;
+namespace DiscordRelay.Util;
 
 public class TimedBool
 {

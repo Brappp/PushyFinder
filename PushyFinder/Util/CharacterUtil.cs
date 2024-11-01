@@ -1,17 +1,22 @@
-namespace PushyFinder.Util;
+using DiscordRelay.Util; // Ensure this is included for any dependencies
 
-public static class CharacterUtil
+namespace DiscordRelay.Util
 {
-    public static bool IsClientAfk()
+    public static class CharacterUtil
     {
-        if (Plugin.Configuration.IgnoreAfkStatus)
-            return true;
+        public static bool IsClientAfk()
+        {
+            // Check if AFK status is ignored in configuration
+            if (DiscordRelay.Configuration.IgnoreAfkStatus)
+                return true;
 
-        if (!Service.ClientState.IsLoggedIn ||
-            Service.ClientState.LocalPlayer == null)
-            return false;
+            // Ensure the client is logged in and local player is available
+            if (!Service.ClientState.IsLoggedIn ||
+                Service.ClientState.LocalPlayer == null)
+                return false;
 
-        // 17 = AFK, 18 = Camera Mode (should catch idle camera. also has the effect of catching gpose!)
-        return Service.ClientState.LocalPlayer.OnlineStatus.Id is 17 or 18;
+            // 17 = AFK, 18 = Camera Mode (catches idle camera and gpose)
+            return Service.ClientState.LocalPlayer.OnlineStatus.Id is 17 or 18;
+        }
     }
 }

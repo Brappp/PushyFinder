@@ -5,21 +5,18 @@ using System.Text;
 using System.Threading.Tasks;
 using Flurl.Http;
 using Dalamud.Utility;
-using System.Net;
 using System.Net.Http;
-using System.Threading;
 using Newtonsoft.Json.Linq;
 
-namespace PushyFinder.Delivery
+namespace DiscordRelay.Delivery
 {
     public class DiscordDMDelivery : IDelivery
     {
         private static readonly string BOT_SERVICE_URL = "https://relay.wahapp.com"; // Local testing URL
-        private static readonly string NTP_SERVER = "pool.ntp.org"; // Default NTP server
 
-        public bool IsActive => Plugin.Configuration.EnableDiscordBot &&
-                                !string.IsNullOrWhiteSpace(Plugin.Configuration.DiscordUserToken) &&
-                                !string.IsNullOrWhiteSpace(Plugin.Configuration.UserSecretKey);
+        public bool IsActive => DiscordRelay.Configuration.EnableDiscordBot &&
+                                !string.IsNullOrWhiteSpace(DiscordRelay.Configuration.DiscordUserToken) &&
+                                !string.IsNullOrWhiteSpace(DiscordRelay.Configuration.UserSecretKey);
 
         public void Deliver(string title, string text)
         {
@@ -34,22 +31,10 @@ namespace PushyFinder.Delivery
 
         private async void DeliverAsync(string title, string text)
         {
-            if (string.IsNullOrWhiteSpace(Plugin.Configuration.DiscordUserToken) ||
-                string.IsNullOrWhiteSpace(Plugin.Configuration.UserSecretKey))
+            if (string.IsNullOrWhiteSpace(DiscordRelay.Configuration.DiscordUserToken) ||
+                string.IsNullOrWhiteSpace(DiscordRelay.Configuration.UserSecretKey))
             {
                 Service.PluginLog.Error("User is not fully configured with the Discord bot. Ensure both the token and secret key are set in the plugin.");
-                return;
-            }
-
-            // Fetch NTP-synced UTC timestamp
-            string timestamp;
-            try
-            {
-                timestamp = await GetNtpTimeAsync();
-            }
-            catch (Exception ex)
-            {
-                Service.PluginLog.Error($"Failed to sync with NTP server: {ex.Message}");
                 return;
             }
 
@@ -58,16 +43,16 @@ namespace PushyFinder.Delivery
 
             var args = new Dictionary<string, string>
             {
-                { "user_token", Plugin.Configuration.DiscordUserToken },
+                { "user_token", DiscordRelay.Configuration.DiscordUserToken },
                 { "title", title },
                 { "text", text },
                 { "nonce", nonce },
-                { "timestamp", timestamp }
+                { "timestamp", DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString() } // Use current UTC timestamp
             };
 
             // Concatenate message data for hashing
-            var messageData = $"{Plugin.Configuration.DiscordUserToken}{title}{text}{nonce}{timestamp}";
-            args["hash"] = GenerateHmacHash(messageData, Plugin.Configuration.UserSecretKey);
+            var messageData = $"{DiscordRelay.Configuration.DiscordUserToken}{title}{text}{nonce}{args["timestamp"]}";
+            args["hash"] = GenerateHmacHash(messageData, DiscordRelay.Configuration.UserSecretKey);
 
             Service.PluginLog.Debug("Attempting to send data to Discord bot service...");
             try
@@ -96,26 +81,6 @@ namespace PushyFinder.Delivery
                 byte[] messageBytes = Encoding.UTF8.GetBytes(message);
                 byte[] hashBytes = hmac.ComputeHash(messageBytes);
                 return Convert.ToBase64String(hashBytes);
-            }
-        }
-
-        private async Task<string> GetNtpTimeAsync()
-        {
-            using (var client = new HttpClient())
-            {
-                client.Timeout = TimeSpan.FromSeconds(5);
-                HttpResponseMessage response = await client.GetAsync($"http://worldtimeapi.org/api/timezone/Etc/UTC");
-
-                if (response.IsSuccessStatusCode)
-                {
-                    var jsonResponse = JObject.Parse(await response.Content.ReadAsStringAsync());
-                    var utcDateTime = DateTimeOffset.Parse(jsonResponse["utc_datetime"].ToString()).ToUnixTimeSeconds();
-                    return utcDateTime.ToString();
-                }
-                else
-                {
-                    throw new Exception("Failed to get NTP time from server.");
-                }
             }
         }
 

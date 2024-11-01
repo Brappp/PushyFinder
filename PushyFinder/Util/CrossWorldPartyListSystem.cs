@@ -4,7 +4,7 @@ using Dalamud.Memory;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.UI.Info;
 
-namespace PushyFinder.Util;
+namespace DiscordRelay.Util;
 
 public static class CrossWorldPartyListSystem
 {

@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using Dalamud.Utility;
 
-namespace PushyFinder.Delivery
+namespace DiscordRelay.Delivery
 {
     internal interface IDelivery
     {
@@ -17,26 +17,19 @@ namespace PushyFinder.Delivery
         {
             _deliveries.Clear();
 
-            // Add the default deliveries
-            _deliveries.Add(new PushoverDelivery());
-            _deliveries.Add(new NtfyDelivery());
-
-            // Add Discord delivery if enabled in configuration
-            if (Plugin.Configuration.EnableDiscordBot)
+            // Only add Discord DM delivery if enabled and active
+            if (DiscordRelay.Configuration.EnableDiscordBot) // Update to use DiscordRelay
             {
-                var discordDelivery = new DiscordDMDelivery();
+                var discordDelivery = new DiscordDMDelivery(); // Instantiate DiscordDMDelivery
                 if (discordDelivery.IsActive)
+                {
                     _deliveries.Add(discordDelivery);
-                Service.PluginLog.Debug("DiscordDMDelivery added to active deliveries.");
-            }
-
-            // Add Telegram delivery if enabled in configuration
-            if (Plugin.Configuration.EnableTelegramBot)
-            {
-                var telegramDelivery = new TelegramDelivery();
-                if (telegramDelivery.IsActive)
-                    _deliveries.Add(telegramDelivery);
-                Service.PluginLog.Debug("TelegramDelivery added to active deliveries.");
+                    Service.PluginLog.Debug("DiscordDMDelivery added to active deliveries.");
+                }
+                else
+                {
+                    Service.PluginLog.Debug("DiscordDMDelivery is not active and will not be added.");
+                }
             }
         }
 

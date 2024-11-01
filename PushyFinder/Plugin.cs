@@ -2,118 +2,97 @@ using Dalamud.Game.Command;
 using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
 using Dalamud.Plugin;
-using Dalamud.Plugin.Services;
-using Flurl.Http;
-using Flurl.Http.Configuration;
-using Newtonsoft.Json;
-using PushyFinder.Impl;
-using PushyFinder.Util;
-using PushyFinder.Windows;
-using PushyFinder.Delivery;
+using DiscordRelay.Impl; // Updated namespace
+using DiscordRelay.Util; // Updated namespace
+using DiscordRelay.Windows; // Updated namespace
+using DiscordRelay.Delivery; // Updated namespace
 
-namespace PushyFinder;
-
-public sealed class Plugin : IDalamudPlugin
+namespace DiscordRelay // Updated namespace
 {
-    public string Name => "PushyFinder";
-    private const string CommandName = "/pushyfinder";
-
-    private IDalamudPluginInterface PluginInterface { get; init; }
-    private ICommandManager CommandManager { get; init; }
-
-    public static Configuration Configuration { get; private set; }
-    public TelegramDelivery? TelegramDelivery { get; set; }
-    public DiscordDMDelivery? DiscordDMDelivery { get; set; }  // Add DiscordDMDelivery instance
-
-    public WindowSystem WindowSystem = new("PushyFinder");
-    private ConfigWindow ConfigWindow { get; init; }
-
-    public Plugin(IDalamudPluginInterface pluginInterface, ICommandManager commandManager)
+    public sealed class DiscordRelay : IDalamudPlugin // Updated class name
     {
-        pluginInterface.Create<Service>();
+        public string Name => "DiscordRelay"; // Updated plugin name
+        private const string CommandName = "/discordrelay"; // Updated command name
 
-        PluginInterface = pluginInterface;
-        CommandManager = commandManager;
+        private IDalamudPluginInterface PluginInterface { get; init; }
+        public static Configuration Configuration { get; private set; } // Static configuration property
+        public DiscordDMDelivery? DiscordDMDelivery { get; set; } // Instance for Discord DM delivery
 
-        Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
-        Configuration.Initialize(PluginInterface);
+        public WindowSystem WindowSystem = new("DiscordRelay"); // Updated window name
+        private ConfigWindow ConfigWindow { get; init; }
 
-        ConfigWindow = new ConfigWindow(this);
-        WindowSystem.AddWindow(ConfigWindow);
-
-        CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
+        public DiscordRelay(IDalamudPluginInterface pluginInterface)
         {
-            HelpMessage = "Opens the configuration window."
-        });
+            pluginInterface.Create<Service>(); // Create service instance
 
-        PluginInterface.UiBuilder.Draw += DrawUI;
-        PluginInterface.UiBuilder.OpenConfigUi += DrawConfigUI;
+            PluginInterface = pluginInterface;
 
-        // Initialize Telegram bot if enabled
-        if (Configuration.EnableTelegramBot)
-        {
-            TelegramDelivery = new TelegramDelivery();
-            if (TelegramDelivery.IsActive) TelegramDelivery.StartListening();
+            Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+            Configuration.Initialize(PluginInterface);
+
+            ConfigWindow = new ConfigWindow(this); // Initialize the configuration window
+            WindowSystem.AddWindow(ConfigWindow);
+
+            Service.CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
+            {
+                HelpMessage = "Opens the configuration window."
+            });
+
+            PluginInterface.UiBuilder.Draw += DrawUI; // Register the UI draw method
+            PluginInterface.UiBuilder.OpenConfigUi += DrawConfigUI; // Register the config UI opening method
+
+            // Initialize Discord DM bot if enabled
+            if (Configuration.EnableDiscordBot)
+            {
+                DiscordDMDelivery = new DiscordDMDelivery();
+                if (DiscordDMDelivery != null && DiscordDMDelivery.IsActive)
+                    DiscordDMDelivery.StartListening(); // Start listening for Discord DM delivery
+            }
+
+            CrossWorldPartyListSystem.Start(); // Start cross-world party list system
+            PartyListener.On(); // Start party listener
+            DutyListener.On(); // Start duty listener
         }
 
-        // Initialize Discord DM bot if enabled
-        if (Configuration.EnableDiscordBot)
+        public void Dispose()
         {
-            DiscordDMDelivery = new DiscordDMDelivery();
-            if (DiscordDMDelivery.IsActive) DiscordDMDelivery.StartListening();
+            WindowSystem.RemoveAllWindows(); // Clean up UI windows
+            ConfigWindow.Dispose(); // Dispose of the configuration window
+
+            CrossWorldPartyListSystem.Stop(); // Stop cross-world party list system
+            PartyListener.Off(); // Stop party listener
+            DutyListener.Off(); // Stop duty listener
+
+            Service.CommandManager.RemoveHandler(CommandName); // Remove command handler
+
+            // Stop and disable Discord DM bot if enabled
+            if (Configuration.EnableDiscordBot)
+            {
+                DiscordDMDelivery?.StopListening(); // Stop listening if DM delivery is active
+                Configuration.EnableDiscordBot = false; // Disable the bot in configuration
+                Configuration.Save(); // Save changes to configuration
+            }
         }
 
-        CrossWorldPartyListSystem.Start();
-        PartyListener.On();
-        DutyListener.On();
-    }
-
-    public void Dispose()
-    {
-        WindowSystem.RemoveAllWindows();
-        ConfigWindow.Dispose();
-
-        CrossWorldPartyListSystem.Stop();
-        PartyListener.Off();
-        DutyListener.Off();
-
-        CommandManager.RemoveHandler(CommandName);
-
-        // Stop and disable Telegram bot if enabled
-        if (Configuration.EnableTelegramBot)
+        private void OnCommand(string command, string args)
         {
-            TelegramDelivery?.StopListening();
-            Configuration.EnableTelegramBot = false;
-            Configuration.Save();
+            if (args == "debugOnlineStatus") // Handle debug command
+            {
+                Service.ChatGui.Print($"OnlineStatus ID = {Service.ClientState.LocalPlayer!.OnlineStatus.Id}");
+                return;
+            }
+
+            ConfigWindow.IsOpen = true; // Open the configuration window
         }
 
-        // Stop and disable Discord DM bot if enabled
-        if (Configuration.EnableDiscordBot)
+        private void DrawUI() // Method to draw the UI
         {
-            DiscordDMDelivery?.StopListening();
-            Configuration.EnableDiscordBot = false;
-            Configuration.Save();
-        }
-    }
-
-    private void OnCommand(string command, string args)
-    {
-        if (args == "debugOnlineStatus")
-        {
-            Service.ChatGui.Print($"OnlineStatus ID = {Service.ClientState.LocalPlayer!.OnlineStatus.Id}");
-            return;
+            WindowSystem.Draw(); // Draw the window system
         }
 
-        ConfigWindow.IsOpen = true;
-    }
-
-    private void DrawUI()
-    {
-        WindowSystem.Draw();
-    }
-
-    public void DrawConfigUI()
-    {
-        ConfigWindow.IsOpen = true;
+        public void DrawConfigUI() // Method to open the configuration UI
+        {
+            ConfigWindow.IsOpen = true; // Set the configuration window to open
+        }
     }
 }
